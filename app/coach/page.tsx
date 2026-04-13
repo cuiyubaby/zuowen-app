@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { getGradeProfile } from "@/lib/gradeProfile";
 
 type ChatMessage = {
@@ -68,14 +68,9 @@ function getOutlineText(grade: string, input: string) {
 
 export default function CoachPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialTitle = searchParams.get("title") || "";
-  const initialGrade = searchParams.get("grade") || "小学三年级";
 
-  const [title, setTitle] = useState(initialTitle);
-  const [grade, setGrade] = useState(
-    gradeOptions.includes(initialGrade) ? initialGrade : "小学三年级"
-  );
+  const [title, setTitle] = useState("");
+  const [grade, setGrade] = useState("小学三年级");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [result, setResult] = useState({
     outline: "",
@@ -133,10 +128,20 @@ export default function CoachPage() {
   };
 
   useEffect(() => {
-    if (initialTitle.trim() && !started) {
-      startCoaching(initialTitle, grade);
+    const params = new URLSearchParams(window.location.search);
+    const nextTitle = (params.get("title") || "").trim();
+    const nextGrade = params.get("grade") || "小学三年级";
+    const normalizedGrade = gradeOptions.includes(nextGrade)
+      ? nextGrade
+      : "小学三年级";
+
+    setGrade(normalizedGrade);
+    setTitle(nextTitle);
+
+    if (nextTitle) {
+      startCoaching(nextTitle, normalizedGrade);
     }
-  }, [grade, initialTitle, started]);
+  }, []);
 
   const handleSend = async () => {
     if (!userInput.trim()) return;
