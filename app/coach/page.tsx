@@ -1,310 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-
-const gradeOptions = [
-  "小学三年级",
-  "小学四年级",
-  "小学五年级",
-  "小学六年级",
-  "初一",
-  "初二",
-  "初三",
-  "高一",
-  "高二",
-  "高三",
-];
-
-const templateCards = [
-  { title: "美丽的校园", type: "写景", prompt: "选一处校园角落，写出颜色和声音。" },
-  { title: "我的妈妈", type: "写人", prompt: "抓住一个动作和一句对话来写。" },
-  { title: "那次我学会了坚持", type: "成长", prompt: "先写困难，再写转折和结果。" },
-  { title: "一次难忘的旅行", type: "叙事", prompt: "写清时间、地点、人物和一个高潮场景。" },
-];
-
-const recentRecordKey = "zuowen_recent_titles";
-
-export default function LandingPage() {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [grade, setGrade] = useState("小学三年级");
-  const [recentRecords, setRecentRecords] = useState<string[]>([]);
-
-  useEffect(() => {
-    const raw = window.localStorage.getItem(recentRecordKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as string[];
-      if (Array.isArray(parsed)) {
-        setRecentRecords(parsed.filter(Boolean).slice(0, 5));
-      }
-    } catch {
-      // ignore invalid local storage content
-    }
-  }, []);
-
-  const saveRecentTitle = (nextTitle: string) => {
-    const nextList = [nextTitle, ...recentRecords.filter((item) => item !== nextTitle)].slice(0, 5);
-    setRecentRecords(nextList);
-    window.localStorage.setItem(recentRecordKey, JSON.stringify(nextList));
-  };
-
-  const handleStart = () => {
-    const nextTitle = title.trim();
-    if (!nextTitle) {
-      alert("请先输入作文题目");
-      return;
-    }
-
-    saveRecentTitle(nextTitle);
-    const params = new URLSearchParams({
-      title: nextTitle,
-      grade,
-    });
-    router.push(`/coach?${params.toString()}`);
-  };
-
-  const useTemplate = (template: string) => {
-    setTitle(template);
-  };
-
-  return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <section className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-8 text-white md:p-12">
-            <p className="mb-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs">
-              AI 作文助手
-            </p>
-            <h1 className="text-3xl font-bold md:text-4xl">孩子会开口，作文就好写</h1>
-            <p className="mt-4 max-w-2xl text-sm text-blue-50 md:text-base">
-              先输入题目和年级，AI 老师会一步一步提问，帮助孩子把素材讲具体，再生成提纲与优化建议。
-            </p>
-          </div>
-        </section>
-
-        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-          <h2 className="text-xl font-semibold text-slate-900">开始体验</h2>
-          <p className="mt-1 text-sm text-slate-600">1 分钟就能进入陪写页面。</p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">孩子年级</label>
-              <select
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400"
-              >
-                {gradeOptions.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">作文题目</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="例如：我最难忘的一件事"
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400"
-              />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleStart}
-            className="mt-5 w-full rounded-xl bg-blue-600 p-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            开始辅导
-          </button>
-        </section>
-
-        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">热门模板推荐</h3>
-            <span className="text-xs text-slate-400">点击可直接填入题目</span>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            {templateCards.map((item) => (
-              <button
-                key={item.title}
-                type="button"
-                onClick={() => useTemplate(item.title)}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-300 hover:bg-blue-50"
-              >
-                <p className="text-xs text-blue-600">{item.type}</p>
-                <p className="mt-1 font-medium text-slate-900">{item.title}</p>
-                <p className="mt-2 text-xs text-slate-500">{item.prompt}</p>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">最近编辑</h3>
-            <span className="text-xs text-slate-400">保存在当前设备</span>
-          </div>
-          {recentRecords.length === 0 ? (
-            <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-              还没有记录。开始一次陪写后，这里会显示最近写过的题目。
-            </p>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {recentRecords.map((record) => (
-                <button
-                  key={record}
-                  type="button"
-                  onClick={() => setTitle(record)}
-                  className="rounded-xl border border-slate-200 bg-white p-3 text-left text-sm text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
-                >
-                  {record}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
-  );
-}
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-
-const gradeOptions = [
-  "小学三年级",
-  "小学四年级",
-  "小学五年级",
-  "小学六年级",
-  "初一",
-  "初二",
-  "初三",
-  "高一",
-  "高二",
-  "高三",
-];
-
-export default function LandingPage() {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [grade, setGrade] = useState("小学三年级");
-
-  const handleStart = () => {
-    if (!title.trim()) {
-      alert("请先输入作文题目");
-      return;
-    }
-
-    const params = new URLSearchParams({
-      title: title.trim(),
-      grade,
-    });
-    router.push(`/coach?${params.toString()}`);
-  };
-
-  return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <section className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-8 text-white md:p-12">
-            <p className="mb-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs">
-              AI 作文陪练
-            </p>
-            <h1 className="text-3xl font-bold md:text-4xl">把作文写作变成一场有趣对话</h1>
-            <p className="mt-4 max-w-2xl text-sm text-blue-50 md:text-base">
-              面向中小学生的一步一问写作陪练。先帮孩子把素材讲清楚，再自动生成提纲、好句和改进建议。
-            </p>
-            <div className="mt-6 grid gap-3 text-sm md:grid-cols-3">
-              <div className="rounded-xl bg-white/15 p-3">🎯 分年级提问，不会太难</div>
-              <div className="rounded-xl bg-white/15 p-3">📝 对话后自动出写作提纲</div>
-              <div className="rounded-xl bg-white/15 p-3">✨ 给到可直接参考的句子</div>
-            </div>
-          </div>
-        </section>
-
-        <div className="mb-6 grid gap-5 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold text-blue-600">STEP 1</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">输入题目和年级</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              例如“那一刻，我长大了”，系统会自动匹配适合孩子年级的提问方式。
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold text-blue-600">STEP 2</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">按引导回答问题</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              老师一次只问一个点，孩子更容易回答，写作素材会越来越具体。
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold text-blue-600">STEP 3</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">查看工作台结果</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              对话结束后可直接看到提纲、好句、修改建议，快速整理成作文初稿。
-            </p>
-          </div>
-        </div>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-          <h2 className="text-xl font-semibold text-slate-900">开始体验</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            填写信息后，点击开始会进入陪写页面。
-          </p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                孩子年级
-              </label>
-              <select
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400"
-              >
-                {gradeOptions.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                作文题目
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="例如：我最难忘的一件事"
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400"
-              />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleStart}
-            className="mt-5 w-full rounded-xl bg-blue-600 p-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            开始陪写
-          </button>
-        </section>
-      </div>
-    </main>
-  );
-}
-"use client";
-
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getGradeProfile } from "@/lib/gradeProfile";
 
 type ChatMessage = {
@@ -368,9 +65,17 @@ function getOutlineText(grade: string, input: string) {
 5. 结尾：回扣题目，升华主题，体现成长或变化。
   `;
 }
-export default function Home() {
-  const [title, setTitle] = useState("");
-  const [grade, setGrade] = useState("小学三年级");
+
+export default function CoachPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTitle = searchParams.get("title") || "";
+  const initialGrade = searchParams.get("grade") || "小学三年级";
+
+  const [title, setTitle] = useState(initialTitle);
+  const [grade, setGrade] = useState(
+    gradeOptions.includes(initialGrade) ? initialGrade : "小学三年级"
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [result, setResult] = useState({
     outline: "",
@@ -387,6 +92,7 @@ export default function Home() {
   const [upgradeMessage, setUpgradeMessage] = useState(
     "免费次数已用完，开通会员可继续解锁好句润色与深度建议。"
   );
+  const [started, setStarted] = useState(false);
 
   const quickReplies = grade.includes("小学")
     ? ["先写时间和地点", "先写我看到了什么", "我先写一句对话"]
@@ -394,21 +100,18 @@ export default function Home() {
       ? ["先交代背景", "先写关键细节", "我补充当时感受"]
       : ["先明确主题", "先写转折场景", "我补充思考角度"];
 
-  const started = messages.length > 0;
   const progressStep = !started ? 0 : result.outline ? 3 : 2;
   const progressPercent = Math.round((progressStep / 4) * 100);
 
-  const handleStart = () => {
-    if (!title.trim()) {
-      alert("请先输入作文题目");
-      return;
-    }
+  const startCoaching = (nextTitle: string, nextGrade: string) => {
+    const finalTitle = nextTitle.trim();
+    if (!finalTitle) return;
 
-    const profile = getGradeProfile(grade);
+    const profile = getGradeProfile(nextGrade);
     setMessages([
       {
         role: "assistant",
-        content: `你好呀，我们今天一起写《${title}》这篇作文。`,
+        content: `你好呀，我们今天一起写《${finalTitle}》这篇作文。`,
       },
       {
         role: "assistant",
@@ -419,15 +122,21 @@ export default function Home() {
         content: "先告诉我：这篇作文里，你最想写谁，或者最想写哪件事？",
       },
     ]);
-
     setResult({
       outline: "",
       goodSentence: "",
       suggestion: "",
     });
+    setStarted(true);
     setUserInput("");
     setActivePanel("outline");
   };
+
+  useEffect(() => {
+    if (initialTitle.trim() && !started) {
+      startCoaching(initialTitle, grade);
+    }
+  }, [grade, initialTitle, started]);
 
   const handleSend = async () => {
     if (!userInput.trim()) return;
@@ -532,47 +241,19 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 p-4 pb-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">写作陪练</p>
-          <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">
-            作文陪练小助手
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            用一步一问的方式，把素材说清楚、提纲搭出来、句子润起来。
-          </p>
-        </div>
-
-        <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            作文题目
-          </label>
-          <input
-            type="text"
-            placeholder="例如：那一刻，我长大了"
-            className="mb-4 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            选择年级
-          </label>
-          <select
-            className="mb-4 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400"
-            value={grade}
-            onChange={(e) => setGrade(e.target.value)}
-          >
-            {gradeOptions.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-
           <button
             type="button"
-            onClick={handleStart}
-            className="w-full rounded-xl bg-blue-600 p-3 text-sm font-medium text-white transition hover:bg-blue-700"
+            onClick={() => router.push("/")}
+            className="mb-3 text-sm text-slate-500 transition hover:text-blue-600"
           >
-            开始陪写 ✨
+            ← 返回首页
           </button>
+          <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">
+            作文陪写中
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            当前题目：{title || "未设置"} · 年级：{grade}
+          </p>
         </div>
 
         <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -606,7 +287,7 @@ export default function Home() {
               <div className="space-y-3">
                 {messages.length === 0 ? (
                   <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
-                    输入题目并点击“开始陪写”，老师会先帮你把素材聊清楚。
+                    正在准备陪写流程，请稍等...
                   </p>
                 ) : (
                   <>
@@ -657,7 +338,7 @@ export default function Home() {
                     handleSend();
                   }
                 }}
-                placeholder={started ? "说说你刚才想到的细节..." : "先点“开始陪写”再输入"}
+                placeholder="说说你刚才想到的细节..."
                 className="mb-2 min-h-[90px] w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-blue-400"
               />
               <button
