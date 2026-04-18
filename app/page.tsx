@@ -2,34 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const gradeOptions = [
-  "小学三年级",
-  "小学四年级",
-  "小学五年级",
-  "小学六年级",
-  "初一",
-  "初二",
-  "初三",
-  "高一",
-  "高二",
-  "高三",
-];
-
-const templateCards = [
-  { title: "美丽的校园", type: "写景", prompt: "选一处校园角落，写出颜色和声音。" },
-  { title: "我的妈妈", type: "写人", prompt: "抓住一个动作和一句对话来写。" },
-  { title: "那次我学会了坚持", type: "成长", prompt: "先写困难，再写转折和结果。" },
-  { title: "一次难忘的旅行", type: "叙事", prompt: "写清时间、地点、人物和一个高潮场景。" },
-];
+import {
+  formatRecentEditTime,
+  readRecentEdits,
+  recentEditKindCopy,
+  type RecentEditRecord,
+} from "@/lib/recentEdits";
 
 const heroSellingPoints = [
   { icon: "pencil", text: "不会写，也能慢慢说出来" },
-  { icon: "chat", text: "不用催，孩子自己愿意写" },
-  { icon: "book", text: "写着写着，就成一篇完整作文" },
+  { icon: "book", text: "已经写了，也能帮你顺一顺" },
+  { icon: "chat", text: "不用催，孩子自己更愿意写" },
 ] as const;
-
-const recentRecordKey = "zuowen_recent_titles";
 
 function SellingPointIcon({ type }: { type: (typeof heroSellingPoints)[number]["icon"] }) {
   if (type === "pencil") {
@@ -61,54 +45,46 @@ function SellingPointIcon({ type }: { type: (typeof heroSellingPoints)[number]["
 
 export default function LandingPage() {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [grade, setGrade] = useState("小学三年级");
-  const [recentRecords, setRecentRecords] = useState<string[]>([]);
+  const [recentRecords, setRecentRecords] = useState<RecentEditRecord[]>([]);
   const [showLogoFallback, setShowLogoFallback] = useState(false);
   const [showPosterFallback, setShowPosterFallback] = useState(false);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(recentRecordKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as string[];
-      if (Array.isArray(parsed)) {
-        setRecentRecords(parsed.filter(Boolean).slice(0, 5));
-      }
-    } catch {
-      // ignore invalid local storage content
-    }
+    const sync = () => setRecentRecords(readRecentEdits());
+    sync();
+    window.addEventListener("focus", sync);
+    return () => window.removeEventListener("focus", sync);
   }, []);
 
-  const saveRecentTitle = (nextTitle: string) => {
-    const nextList = [nextTitle, ...recentRecords.filter((item) => item !== nextTitle)].slice(0, 5);
-    setRecentRecords(nextList);
-    window.localStorage.setItem(recentRecordKey, JSON.stringify(nextList));
+  const navigatePath = (path: string) => {
+    try {
+      if (/MicroMessenger/i.test(window.navigator.userAgent || "")) {
+        window.location.assign(path);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    router.push(path);
   };
 
-  const handleStart = () => {
-    const nextTitle = title.trim();
-    if (!nextTitle) {
-      alert("请先输入作文题目");
+  const continueRecord = (record: RecentEditRecord) => {
+    const grade = record.grade || "小学三年级";
+    if (record.kind === "write") {
+      const q = new URLSearchParams({ title: record.title, grade });
+      navigatePath(`/coach?${q.toString()}`);
       return;
     }
-
-    saveRecentTitle(nextTitle);
-    const params = new URLSearchParams({
-      title: nextTitle,
-      grade,
-    });
-    router.push(`/coach?${params.toString()}`);
-  };
-
-  const useTemplate = (template: string) => {
-    setTitle(template);
+    const q = new URLSearchParams({ grade });
+    if (record.title.trim()) q.set("title", record.title);
+    navigatePath(`/rewrite?${q.toString()}`);
   };
 
   return (
     <main className="min-h-screen bg-[#f7f2e7] px-4 py-8 text-[#3f2b1f]">
       <div className="mx-auto max-w-6xl">
-        <section className="relative mb-6 aspect-square overflow-hidden rounded-3xl border border-[#e3d8c8] bg-[#fffaf2] shadow-sm md:aspect-auto md:min-h-[520px]">
+        {/* 1. Hero */}
+        <section className="relative mb-8 aspect-square overflow-hidden rounded-3xl border border-[#e3d8c8] bg-[#fffaf2] shadow-sm md:aspect-auto md:min-h-[520px]">
           {!showPosterFallback ? (
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
               <img
@@ -134,7 +110,7 @@ export default function LandingPage() {
                     className="h-7 w-auto opacity-90"
                   />
                 ) : (
-                  <div className="text-base">
+                  <div className="text-base" aria-hidden="true">
                     🌱
                   </div>
                 )}
@@ -159,99 +135,181 @@ export default function LandingPage() {
                 ))}
               </div>
               <p className="mt-7 max-w-md text-[15px] leading-7 text-[#6d5443]">
-                AI 陪孩子慢慢表达，而不是直接给答案。先把想法说出来，再一步步整理成完整作文。
+                AI 陪孩子慢慢表达，而不是直接给答案。
+                <br />
+                不会写的时候陪着写，写完以后也能一起改得更好。
               </p>
             </div>
           </div>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-[#e3d8c8] bg-[#fffaf2] p-5 shadow-sm md:p-6">
-          <h2 className="text-xl font-semibold text-[#4d2d1d]">开始体验</h2>
-          <p className="mt-1 text-sm text-[#7b6351]">先选年级，再输入题目，1 分钟进入陪写。</p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#5b4739]">孩子年级</label>
-              <select
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                className="w-full rounded-xl border border-[#dfd2c0] bg-white p-3 text-sm outline-none transition focus:border-[#6db96d]"
-              >
-                {gradeOptions.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#5b4739]">作文题目</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="例如：我最难忘的一件事"
-                className="w-full rounded-xl border border-[#dfd2c0] bg-white p-3 text-sm outline-none transition focus:border-[#6db96d]"
-              />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleStart}
-            className="mt-5 w-full rounded-xl bg-[#6db96d] p-3 text-sm font-semibold text-white transition hover:bg-[#5cae5c]"
-          >
-            开始辅导
-          </button>
-        </section>
-
-        <section className="mb-6 rounded-2xl border border-[#e3d8c8] bg-[#fffaf2] p-5 shadow-sm md:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-[#4d2d1d]">热门模板推荐</h3>
-            <span className="text-xs text-[#a18a74]">点击可直接填入题目</span>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            {templateCards.map((item) => (
-              <button
-                key={item.title}
-                type="button"
-                onClick={() => useTemplate(item.title)}
-                className="rounded-xl border border-[#e6d9c8] bg-[#fff] p-4 text-left transition hover:border-[#8dcf8d] hover:bg-[#f2faef]"
-              >
-                <p className="text-xs text-[#4f9c4f]">{item.type}</p>
-                <p className="mt-1 font-medium text-[#3f2b1f]">{item.title}</p>
-                <p className="mt-2 text-xs text-[#7b6351]">{item.prompt}</p>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-[#e3d8c8] bg-[#fffaf2] p-5 shadow-sm md:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-[#4d2d1d]">最近编辑</h3>
-            <span className="text-xs text-[#a18a74]">保存在当前设备</span>
-          </div>
-          {recentRecords.length === 0 ? (
-            <p className="rounded-xl bg-[#f8f1e5] p-4 text-sm text-[#7b6351]">
-              还没有记录。开始一次陪写后，这里会显示最近写过的题目。
+        {/* 2. 双入口 */}
+        <section className="relative z-10 mb-8">
+          <div className="mb-5 text-center md:text-left">
+            <h2 className="text-xl font-semibold text-[#4d2d1d] md:text-2xl">
+              你想从哪一步开始？
+            </h2>
+            <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-[#6d5443]">
+              选一个入口就好，具体怎么写、怎么改，都在下一页慢慢完成。
             </p>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {recentRecords.map((record) => (
-                <button
-                  key={record}
-                  type="button"
-                  onClick={() => setTitle(record)}
-                  className="rounded-xl border border-[#e6d9c8] bg-white p-3 text-left text-sm text-[#5b4739] transition hover:border-[#8dcf8d] hover:text-[#3e8f3e]"
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <article className="flex flex-col rounded-3xl border border-[#c8e4c0] bg-[#eef8e9] p-7 shadow-sm md:min-h-[272px]">
+              <div className="mb-4 flex items-start gap-3">
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#b8dcb0] bg-[#dff3d9] text-[#4e7f4a]"
+                  aria-hidden="true"
                 >
-                  {record}
-                </button>
-              ))}
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                    <path
+                      d="M4 20L8.5 18.9L18 9.4L14.6 6L5.1 15.5L4 20Z"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <path
+                      d="M13.8 6.8L17.2 10.2"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium tracking-wide text-[#4f9c4f]">
+                    还没开始写
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-[#2d4a28] md:text-xl">
+                    开始写作文
+                  </h3>
+                </div>
+              </div>
+              <p className="mb-6 flex-1 text-[15px] leading-7 text-[#4a5a44]">
+                不会写、没思路，也可以一步一步慢慢说出来
+              </p>
+              <button
+                type="button"
+                onClick={() => navigatePath("/coach")}
+                className="mt-auto min-h-[48px] w-full rounded-2xl bg-[#5cae5c] px-4 py-3 text-base font-semibold text-white transition hover:bg-[#529e52] active:bg-[#478a47]"
+              >
+                去开始写
+              </button>
+            </article>
+
+            <article className="flex flex-col rounded-3xl border border-[#e8d4b8] bg-[#fdf6e8] p-7 shadow-sm md:min-h-[272px]">
+              <div className="mb-4 flex items-start gap-3">
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#e0c9a8] bg-[#faedd4] text-[#8a6a3e]"
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                    <path
+                      d="M7 4.5H17V19.5H7V4.5Z"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <path
+                      d="M9 8H15M9 11.5H14M9 15H12"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="16" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3" />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium tracking-wide text-[#a67c52]">
+                    已经写好了
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-[#5c4a32] md:text-xl">
+                    去优化作文
+                  </h3>
+                </div>
+              </div>
+              <p className="mb-6 flex-1 text-[15px] leading-7 text-[#6b5340]">
+                把已经写好的作文贴进来，我帮你顺一顺、改一改
+              </p>
+              <button
+                type="button"
+                onClick={() => navigatePath("/rewrite")}
+                className="mt-auto min-h-[48px] w-full rounded-2xl bg-[#b8956b] px-4 py-3 text-base font-semibold text-white transition hover:bg-[#a6845f] active:bg-[#957454]"
+              >
+                去优化
+              </button>
+            </article>
+          </div>
+        </section>
+
+        {/* 3. 学习记录 */}
+        <section className="rounded-3xl border border-[#e3d8c8] bg-[#fffaf2] p-6 shadow-sm md:p-8">
+          <h3 className="mb-5 text-lg font-semibold text-[#4d2d1d] md:text-xl">
+            咱们最近写过的
+          </h3>
+          {recentRecords.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#e0d5c4] bg-[#fbf7ef] px-6 py-10 text-center">
+              <p className="text-[15px] leading-7 text-[#5b4739]">
+                你写过的作文会慢慢出现在这里。
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-[#8a7865]">
+                从第一篇开始，咱们把写过的都留在这里。
+              </p>
+              <button
+                type="button"
+                onClick={() => navigatePath("/coach")}
+                className="mt-7 inline-flex rounded-xl border border-[#b8dcb0] bg-white px-6 py-2.5 text-sm font-medium text-[#3d6b38] shadow-sm transition hover:bg-[#f4faf2]"
+              >
+                去开始写
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {recentRecords.map((record) => {
+                const timeStr = formatRecentEditTime(record.at);
+                const { label: kindLabel } = recentEditKindCopy(record.kind);
+                return (
+                  <div
+                    key={record.id}
+                    className="flex flex-col rounded-2xl border border-[#eadfcc] bg-white p-5 shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          record.kind === "write"
+                            ? "bg-[#e8f5e4] text-[#2f6a2c]"
+                            : "bg-[#faedd4] text-[#7a5228]"
+                        }`}
+                      >
+                        {kindLabel}
+                      </span>
+                      <time
+                        dateTime={record.at}
+                        className="text-xs tabular-nums text-[#a18a74]"
+                      >
+                        {timeStr}
+                      </time>
+                    </div>
+                    <p className="mt-3 line-clamp-3 text-[15px] font-medium leading-snug text-[#3f2b1f]">
+                      {record.title}
+                    </p>
+                    {record.grade ? (
+                      <p className="mt-2 text-xs text-[#b5a090]">{record.grade}</p>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => continueRecord(record)}
+                      className={
+                        record.kind === "write"
+                          ? "mt-4 w-full rounded-xl border border-[#cfe8c9] bg-[#f4faf2] py-2.5 text-sm font-medium text-[#3d6b38] transition hover:bg-[#e8f3e4]"
+                          : "mt-4 w-full rounded-xl border border-[#e8d4b8] bg-[#fffaf5] py-2.5 text-sm font-medium text-[#7a5228] transition hover:bg-[#faedd4]/60"
+                      }
+                    >
+                      {record.kind === "write" ? "继续写" : "看看修改"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
-        <p className="mt-4 text-center text-xs text-[#9b846f]">
-          Logo 路径：`public/brand/logo.png` · 插图路径：`public/brand/poster.png`
-        </p>
       </div>
     </main>
   );
